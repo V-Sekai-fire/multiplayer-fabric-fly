@@ -57,12 +57,13 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 | Zone Backend | 1x shared-cpu-1x 512MB | $3.32 | $40 |
 | Zone Servers | 2x performance-1x 4GB (auto-stop) | $0–85.16 | $0–1,022 |
 | Database | 1x shared-cpu-2x 4GB + 80GB volume | $34.22 | $411 |
+| DB Snapshots | 80GB volume snapshot (+10GB free) | ~$5.60 | ~$67 |
 | Object Storage | Tigris 250GB, zero egress | $5.00 | $60 |
 | Load Balancer | Fly.io Anycast (built-in) | $0 | $0 |
 | Caching | ETS/DETS in-process | $0 | $0 |
-| **TOTAL** | | **$42.54–127.70** | **$511–1,533** |
+| **TOTAL** | | **$48.14–133.30** | **$578–1,600** |
 
-**Annual cost: ~$511–1,533/year** (low traffic: zones idle; high traffic: both zones always on)
+**Annual cost: ~$578–1,600/year** (low traffic: zones idle; high traffic: both zones always on)
 
 Prices sourced from [Fly.io pricing](https://fly.io/docs/about/pricing/) and [Tigris pricing](https://www.tigrisdata.com/docs/pricing/) — April 2026.
 
