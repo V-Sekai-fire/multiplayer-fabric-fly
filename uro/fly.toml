@@ -2,7 +2,7 @@ app = "multiplayer-fabric-uro"
 primary_region = "yyz"
 
 [build]
-  image = "ghcr.io/v-sekai/uro:latest"
+  image = "ghcr.io/v-sekai-fire/multiplayer-fabric-zone-backend:latest"
 
 [env]
   PHX_HOST = "uro.multiplayer-fabric.fly.dev"

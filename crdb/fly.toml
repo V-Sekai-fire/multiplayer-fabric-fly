@@ -2,7 +2,7 @@ app = "multiplayer-fabric-crdb"
 primary_region = "yyz"
 
 [build]
-  image = "cockroachdb/cockroach:latest-v24.3"
+  image = "ghcr.io/v-sekai/cockroach:latest"
 
 [env]
   COCKROACH_LISTEN_ADDR = "0.0.0.0:26257"

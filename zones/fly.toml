@@ -2,7 +2,7 @@ app = "multiplayer-fabric-zones"
 primary_region = "yyz"
 
 [build]
-  image = "ghcr.io/v-sekai-fire/godot-server:latest"
+  image = "ghcr.io/v-sekai-fire/multiplayer-fabric-godot-server:latest"
 
 [env]
   GODOT_HEADLESS = "1"
