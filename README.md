@@ -133,6 +133,94 @@ Test with a series of small deployments to finalize configuration before product
 
 > **Note:** Focus on safe defaults first — auto-scaling over replication strategies except for very stable, predictable workloads.
 
+## Home User Deployment
+
+Home users can run the full stack without a cloud provider using one of two
+networking strategies, or both at once.
+
+### Strategy A — Port forwarding HTTP/3 on port 443
+
+WebTransport requires QUIC (UDP). Forward **UDP 443** on your router to the
+machine running the zone server.
+
+```
+Internet
+  │  UDP 443 (QUIC)
+  ▼
+Router  ─── UDP 443 forwarded ──▶  Zone server machine (picoquic)
+```
+
+Steps:
+
+1. **Router rule:** forward UDP port 443 → zone server LAN IP.
+2. **Dynamic DNS:** point a hostname at your public IP (e.g. duckdns, Cloudflare
+   free DNS with a script that updates the A record).
+3. **TLS:** the zone server generates a self-signed cert on startup and stores
+   its fingerprint in Uro (`cert_hash`). Clients pin to that hash — no CA
+   needed.
+4. **Register the shard** in zone_console with the DDNS hostname and port 443:
+   ```
+   register <ddns-hostname> 443 <map> <name>
+   ```
+
+Clients connect directly over QUIC — no proxy, lowest possible latency.
+Requires your ISP to not block inbound UDP 443 (most residential ISPs allow
+it; some CGNAT setups do not).
+
+### Strategy B — Cloudflare Tunnel HTTP/1 (no port forwarding)
+
+Cloudflare Tunnel (`cloudflared`) creates an outbound-only TCP connection to
+Cloudflare's edge — no inbound firewall rules or port forwarding required.
+The tunnel only proxies HTTP/1.1 and HTTP/2 (TCP); it cannot carry QUIC/UDP,
+so **WebTransport zone traffic cannot use this path**.
+
+Use the tunnel for the **Uro backend** (REST API, HTTP/1.1) and serve zone
+connections separately if UDP reachability is available.
+
+```
+Internet
+  │  HTTPS (HTTP/1.1)
+  ▼
+Cloudflare edge ─── tunnel ──▶  cloudflared ──▶  Uro backend (Phoenix)
+
+Zone server: not reachable via tunnel — requires Strategy A or STUN/TURN.
+```
+
+Steps:
+
+1. Install cloudflared and authenticate:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create multiplayer-fabric
+   ```
+2. Create the tunnel config (`~/.cloudflared/config.yml`):
+   ```yaml
+   tunnel: <tunnel-id>
+   credentials-file: /home/<user>/.cloudflared/<tunnel-id>.json
+   ingress:
+     - hostname: uro.example.com
+       service: http://localhost:4000
+     - service: http_status:404
+   ```
+3. Add a CNAME in Cloudflare DNS: `uro.example.com → <tunnel-id>.cfargotunnel.com`.
+4. Run: `cloudflared tunnel run multiplayer-fabric`
+5. Set `URO_BASE_URL=https://uro.example.com` in zone_console.
+
+Zone servers remain unreachable for WebTransport unless Strategy A is also
+applied. If your ISP uses CGNAT (no public IP), Strategy B covers Uro and
+zone WebTransport is unavailable without a relay (TURN/VPN).
+
+### Mixing both strategies
+
+| Component | Strategy A | Strategy B |
+| --------- | ---------- | ---------- |
+| Uro backend (REST) | DDNS + TCP 443 forwarded | Cloudflare Tunnel ✓ |
+| Zone server (WebTransport) | UDP 443 forwarded ✓ | Not supported |
+
+The recommended home setup is **Strategy B for Uro + Strategy A for zones**:
+Cloudflare Tunnel handles the REST API with zero port-forwarding and automatic
+HTTPS; UDP 443 forwarding handles WebTransport zone traffic directly.
+
 ## References
 
 ```bibtex
