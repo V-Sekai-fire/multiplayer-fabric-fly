@@ -1,0 +1,26 @@
+app = "multiplayer-fabric-zones"
+primary_region = "yyz"
+
+[build]
+  image = "ghcr.io/v-sekai-fire/godot-server:latest"
+
+[env]
+  GODOT_HEADLESS = "1"
+
+# Zone servers use TCP (WebTransport/UDP) rather than HTTP — no [http_service].
+# Auto-stop is managed by the Uro backend calling the Fly Machines API to
+# start/stop individual zone machines when player counts cross zero.
+[[services]]
+  internal_port = 7777
+  protocol = "udp"
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 7777
+
+[[vm]]
+  size = "performance-1x"
+  memory = "4096mb"
+  cpus = 2
