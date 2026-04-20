@@ -150,17 +150,49 @@ Internet
 Router  ─── UDP 443 forwarded ──▶  Zone server machine (picoquic)
 ```
 
-Steps:
+#### DNS naming — zone + MAC digits schema
+
+Each zone server is named `zone-<last4hex>.<your-domain>`, where `<last4hex>`
+is the last 4 hex digits (2 bytes) of the machine's primary network interface
+MAC address. This gives each machine a stable, collision-resistant subdomain
+derived from hardware identity — no manual name assignment needed.
+
+```bash
+# Get last 4 hex digits of the primary interface MAC (Linux)
+MAC=$(ip link show $(ip route show default | awk '/dev/{print $5}' | head -1) \
+      | awk '/link\/ether/{print $2}')
+LAST4=$(echo "$MAC" | tr -d ':' | tail -c 5)
+echo "zone-${LAST4}.example.com"
+# e.g. MAC aa:bb:cc:dd:70:0a → zone-700a.example.com
+```
+
+Add an A record in your DNS provider:
+
+```
+zone-<last4hex>.<your-domain>  A  <your-public-IP>
+```
+
+Set in `.env` (see `multiplayer-fabric-hosting/.env.example`):
+
+```bash
+ZONE_HOST=zone-<last4hex>.<your-domain>
+ZONE_PORT=443
+```
+
+#### Steps
 
 1. **Router rule:** forward UDP port 443 → zone server LAN IP.
-2. **Dynamic DNS:** point a hostname at your public IP (e.g. duckdns, Cloudflare
-   free DNS with a script that updates the A record).
-3. **TLS:** the zone server generates a self-signed cert on startup and stores
+2. **DNS record:** create `zone-<last4hex>.<your-domain>` A record pointing at
+   your public IP. Use Cloudflare free DNS or duckdns with a DDNS update script
+   if your IP changes.
+3. **Set ZONE_HOST:** put the full hostname in `.env` so the zone server
+   advertises the correct address in its self-signed cert and Uro registration.
+4. **TLS:** the zone server generates a self-signed cert on startup and stores
    its fingerprint in Uro (`cert_hash`). Clients pin to that hash — no CA
    needed.
-4. **Register the shard** in zone_console with the DDNS hostname and port 443:
+5. **Register the shard** in zone_console:
    ```
-   register <ddns-hostname> 443 <map> <name>
+   register zone-<last4hex>.<your-domain> 443 <map> <name>
    ```
 
 Clients connect directly over QUIC — no proxy, lowest possible latency.
