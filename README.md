@@ -6,12 +6,12 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 
 ## Component Sizing and Deployment Strategy
 
-### 1. Uro Backend (Elixir/Phoenix)
+### 1. Zone Backend (Elixir/Phoenix — `multiplayer-fabric-zone-backend`)
 - **Size:** 1x shared-cpu-1x, 512MB RAM
 - **Region:** Toronto (yyz)
 - **Auto-stop:** No (always-on for API availability)
 - **Reasoning:** Handles REST API, user authentication, and zone management. Caddy runs on the same machine for TLS termination.
-- **Monthly Cost:** ~$3 (~$36/year)
+- **Monthly Cost:** $3.32 (~$40/year)
 - **Justification:** Shared CPU is sufficient for Elixir/Phoenix at low traffic. ETS/DETS handle caching in-process with no extra service.
 
 ### 2. Zone Servers (Godot)
@@ -20,7 +20,7 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 - **Auto-stop:** Yes — machines scale to 0 when no players are connected
 - **Min machines running:** 0
 - **Reasoning:** Each zone runs a single headless Godot instance pinned to 1 core, with the second core reserved for the OS. Scale-to-zero means zones cost $0 when idle.
-- **Monthly Cost:** $0–40 depending on uptime ($0–480/year)
+- **Monthly Cost:** $0–85.16 depending on uptime ($0–1,022/year) — $42.58/machine × 2
 - **Justification:** performance-1x provides dedicated CPU for consistent game simulation. Scale-to-zero eliminates idle compute cost entirely; cold-start latency (~1–2s) is acceptable when a player join triggers the wake.
 
 ### 3. Database (CockroachDB)
@@ -29,7 +29,7 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 - **Volume:** 80GB persistent volume
 - **Auto-stop:** No (always-on for database availability)
 - **Reasoning:** Single-node CRDB retains the full SQL interface and tooling. Scale to 3-node when HA is required.
-- **Monthly Cost:** ~$20 (~$240/year)
+- **Monthly Cost:** $34.22 (~$411/year) — $22.22 machine + $12.00 volume (80GB × $0.15/GB)
 - **Justification:** Single-node CRDB on a shared Fly machine costs far less than a managed database. Daily volume snapshots provide recovery path.
 
 ### 4. Object Storage
@@ -37,7 +37,7 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 - **Size:** 250GB
 - **Reasoning:** Tigris is integrated with Fly.io, S3-compatible, and includes global CDN by default at no extra charge.
 - **CDN Included:** Yes
-- **Monthly Cost:** ~$5 (~$60/year, $0.02/GB)
+- **Monthly Cost:** $5/month (~$60/year) — $0.02/GB, zero egress fees, 5GB free tier
 
 ### 5. Load Balancer
 - **Solution:** Fly.io Anycast proxy (built-in)
@@ -54,15 +54,17 @@ This document details the deployment architecture for V-Sekai's multiplayer fabr
 
 | Component | Details | Monthly | Per Year |
 |-----------|---------|---------|----------|
-| Uro Backend | 1x shared-cpu-1x 512MB | $3 | $36 |
-| Zone Servers | 2x performance-1x 4GB (auto-stop) | $0–40 | $0–480 |
-| Database | 1x shared-cpu-2x 4GB CRDB | $20 | $240 |
-| Object Storage | Tigris 250GB w/ CDN | $5 | $60 |
+| Zone Backend | 1x shared-cpu-1x 512MB | $3.32 | $40 |
+| Zone Servers | 2x performance-1x 4GB (auto-stop) | $0–85.16 | $0–1,022 |
+| Database | 1x shared-cpu-2x 4GB + 80GB volume | $34.22 | $411 |
+| Object Storage | Tigris 250GB, zero egress | $5.00 | $60 |
 | Load Balancer | Fly.io Anycast (built-in) | $0 | $0 |
 | Caching | ETS/DETS in-process | $0 | $0 |
-| **TOTAL** | | **~$28–68** | **~$336–816** |
+| **TOTAL** | | **$42.54–127.70** | **$511–1,533** |
 
-**Annual cost: ~$336–816/year** (low traffic: zones mostly idle; high traffic: zones always on)
+**Annual cost: ~$511–1,533/year** (low traffic: zones idle; high traffic: both zones always on)
+
+Prices sourced from [Fly.io pricing](https://fly.io/docs/about/pricing/) and [Tigris pricing](https://www.tigrisdata.com/docs/pricing/) — April 2026.
 
 **Scale-up triggers:** add a 3rd zone at ~60 concurrent players; scale CRDB to 3-node when HA is required; add a second Uro machine when API becomes the bottleneck.
 
